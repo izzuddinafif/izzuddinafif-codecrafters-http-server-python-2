@@ -18,7 +18,7 @@ def main():
                         break
                     lines = data.splitlines()
                     method, path, version = lines[0].split(' ')
-                    host, user_agent = lines[3].split(' ')
+                    user_agent = [ua for ua in lines if ua.startswith("User")][0].split(' ')[1] # get user
                     handle_request(conn, path, user_agent)
 
 def build_response(body, status, content_type):
