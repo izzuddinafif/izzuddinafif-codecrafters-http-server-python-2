@@ -18,8 +18,13 @@ def main():
                         break
                     lines = data.splitlines()
                     method, path, version = lines[0].split(' ')
-                    user_agent = [ua for ua in lines if ua.startswith("User") else "no ua"][0].split(' ')[1] # get user-agent
+                    user_agent = ''
+                    for line in lines:
+                        if line.startswith('User'):
+                            user_agent = line.split(' ')[1]
+                    
                     print(user_agent)
+                    # user_agent = [ua for ua in lines if ua.startswith("User")][0].split(' ')[1] # get user-agent
                     handle_request(conn, path, user_agent)
 
 def build_response(body, status, content_type):
@@ -31,6 +36,8 @@ def build_response(body, status, content_type):
     if status.startswith('200'):
         if body:
             resp.extend([f'Content-Type: {content_type}', f'Content-Length: {len(body_bytes)}', ''])
+        else:
+            resp.append('')
     
     return '\r\n'.join(resp).encode() + b'\r\n' + body_bytes
 
