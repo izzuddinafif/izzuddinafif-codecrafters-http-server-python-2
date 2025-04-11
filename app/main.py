@@ -4,8 +4,10 @@ import threading
 import argparse
 import pathlib
 
+BADREQ = '400 Bad Request'
 NOTFOUND = '404 Not Found'
 OK = '200 OK'
+CREATED = '201 Created'
 
 parser = argparse.ArgumentParser(description="Afif's simple HTTP server.")
 parser.add_argument('--directory', type=str, help="Path where the HTTP server operates.", default="/tmp")
@@ -34,10 +36,12 @@ def handle_client(conn, addr):
             if not data:
                 break
             lines = data.splitlines()
+            print(lines)
             method, path, version = lines[0].split(' ')
             user_agent_lines = [ua for ua in lines if ua.startswith("User-Agent:")]
             user_agent = user_agent_lines[0].split(' ', 1)[1] if user_agent_lines else "Unknown"
-            handle_request(conn, path, user_agent)
+            request_body = lines[-1] if lines[-2] == '' else ''
+            handle_request(conn, path, user_agent, method, request_body)
 
 def build_response(body, status, content_type):
     body_bytes = body.encode()
@@ -58,37 +62,51 @@ def read_file(path):
     
     return content
 
-def handle_request(conn, path, user_agent):
+def handle_request(conn, path, user_agent, method, req_body):
     p = path.split('/') 
-    if p[1] == '':
-        resp = build_response('', OK, '')
-        logging.info(resp)
-        conn.sendall(resp)
-    elif p[1] == 'echo' and len(p) > 2:
-        resp = build_response(p[2],  OK, 'text/plain')
-        logging.info(resp)
-        conn.sendall(resp)
-    elif p[1] == 'user-agent':
-        resp = build_response(user_agent, OK, 'text/plain')
-        logging.info(resp)
-        conn.sendall(resp)
-    elif p[1] == 'files' and len(p) > 2:
-        file_path = dir_path.joinpath(p[2])
-        if file_path.exists():
-            with open(file_path, "r") as f:
-                content = f.read().rstrip('\n')
-            resp = build_response(content, OK, 'application/octet-stream')
+    if method == 'GET':
+        if p[1] == '':
+            resp = build_response('', OK, '')
             logging.info(resp)
             conn.sendall(resp)
-        else:                
+        elif p[1] == 'echo' and len(p) > 2:
+            resp = build_response(p[2],  OK, 'text/plain')
+            logging.info(resp)
+            conn.sendall(resp)
+        elif p[1] == 'user-agent':
+            resp = build_response(user_agent, OK, 'text/plain')
+            logging.info(resp)
+            conn.sendall(resp)
+        elif p[1] == 'files' and len(p) > 2:
+            file_path = dir_path.joinpath(p[2])
+            if file_path.exists():
+                with open(file_path, "r") as f:
+                    content = f.read().rstrip('\n')
+                resp = build_response(content, OK, 'application/octet-stream')
+                logging.info(resp)
+                conn.sendall(resp)
+            else:                
+                resp = build_response('', NOTFOUND, '')
+                logging.info(resp)
+                conn.sendall(resp)
+        else:
             resp = build_response('', NOTFOUND, '')
             logging.info(resp)
             conn.sendall(resp)
-            
-    else:
-        resp = build_response('', NOTFOUND, '')
-        logging.info(resp)
-        conn.sendall(resp)
+    elif method == 'POST':
+        if p[1] == 'files' and len(p) > 2 and req_body:
+            file_path = dir_path.joinpath(p[2])
+            with open(file_path, "w") as f:
+                f.write(req_body)
+                f.close()
+            resp = build_response('', CREATED, '') 
+            logging.info(resp)
+            conn.sendall(resp)
+        else:
+            resp = build_response('', BADREQ, '')
+            logging.info(resp)
+            conn.sendall(resp)
+                        
         
 if __name__ == '__main__':
     main()
