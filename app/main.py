@@ -1,15 +1,25 @@
 import socket
 import logging
 import threading
+import argparse
+import pathlib
 
-NOTFOUND = b'HTTP/1.1 404 Not Found\r\n\r\n'
+NOTFOUND = '404 Not Found'
+OK = '200 OK'
+
+parser = argparse.ArgumentParser(description="Afif's simple HTTP server.")
+parser.add_argument('--directory', type=str, help="Path where the HTTP server operates.")
+dir_path = pathlib.Path(parser.parse_args().directory)
+if not dir_path.exists():
+    print("The directory doesn't exist")
+    raise SystemExit(1)
 
 def main():
-    format = "%(asctime)s: %(message)s"
+    format = "%(asctime)s %(message)s"
     logging.basicConfig(format=format, level=logging.INFO, datefmt="%H:%M:%S")
     port = 4221
     with socket.create_server(('localhost', port), reuse_port=True) as server:
-        logging.info(f"Afif's HTTP server started at {port}")
+        logging.info(f"Afif's simple HTTP server started at port: {port}, and at directory: {dir_path}")
         while True:
             conn, addr = server.accept()
             t = threading.Thread(target=handle_client, args=(conn, addr))
@@ -35,31 +45,50 @@ def build_response(body, status, content_type):
         f'HTTP/1.1 {status}',
     ]
     
-    if status.startswith('200'):
+    if status.startswith(OK):
         if body:
-            resp.extend([f'Content-Type: {content_type}', f'Content-Length: {len(body_bytes)}', ''])
-        else:
-            resp.append('')
+            resp.extend([f'Content-Type: {content_type}', f'Content-Length: {len(body_bytes)}'])
+    resp.append('')
     
+    # add CRLF before response body to terminate the headers section
     return '\r\n'.join(resp).encode() + b'\r\n' + body_bytes
+
+def read_file(path):
+    content = ''
+    
+    return content
 
 def handle_request(conn, path, user_agent):
     p = path.split('/') 
     if p[1] == '':
-        resp = build_response('', '200 OK', '')
+        resp = build_response('', OK, '')
         logging.info(resp)
         conn.sendall(resp)
     elif p[1] == 'echo' and len(p) > 2:
-        resp = build_response(p[2], '200 OK', 'text/plain')
+        resp = build_response(p[2],  OK, 'text/plain')
         logging.info(resp)
         conn.sendall(resp)
     elif p[1] == 'user-agent':
-        resp = build_response(user_agent, '200 OK', 'text/plain')
+        resp = build_response(user_agent, OK, 'text/plain')
         logging.info(resp)
         conn.sendall(resp)
+    elif p[1] == 'files' and len(p) > 2:
+        file_path = dir_path.joinpath(p[2])
+        if file_path.exists():
+            with open(file_path, "r") as f:
+                content = f.read().rstrip('\n')
+            resp = build_response(content, OK, 'application/octet-stream')
+            logging.info(resp)
+            conn.sendall(resp)
+        else:                
+            resp = build_response('', NOTFOUND, '')
+            logging.info(resp)
+            conn.sendall(resp)
+            
     else:
-        logging.info(NOTFOUND)
-        conn.sendall(NOTFOUND)
+        resp = build_response('', NOTFOUND, '')
+        logging.info(resp)
+        conn.sendall(resp)
         
 if __name__ == '__main__':
     main()
