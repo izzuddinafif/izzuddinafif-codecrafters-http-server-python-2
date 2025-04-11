@@ -8,7 +8,7 @@ NOTFOUND = '404 Not Found'
 OK = '200 OK'
 
 parser = argparse.ArgumentParser(description="Afif's simple HTTP server.")
-parser.add_argument('--directory', type=str, help="Path where the HTTP server operates.")
+parser.add_argument('--directory', type=str, help="Path where the HTTP server operates.", default="/tmp")
 dir_path = pathlib.Path(parser.parse_args().directory)
 if not dir_path.exists():
     print("The directory doesn't exist")
