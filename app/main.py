@@ -8,6 +8,7 @@ BADREQ = '400 Bad Request'
 NOTFOUND = '404 Not Found'
 OK = '200 OK'
 CREATED = '201 Created'
+enc_flag = False
 
 parser = argparse.ArgumentParser(description="Afif's simple HTTP server.")
 parser.add_argument('--directory', type=str, help="Path where the HTTP server operates.", default="/tmp")
@@ -36,10 +37,20 @@ def handle_client(conn, addr):
             if not data:
                 break
             lines = data.splitlines()
-            print(lines)
             method, path, version = lines[0].split(' ')
+            
             user_agent_lines = [ua for ua in lines if ua.startswith("User-Agent:")]
             user_agent = user_agent_lines[0].split(' ', 1)[1] if user_agent_lines else "Unknown"
+            
+            encoding = [ae for ae in lines if ae.startswith("Accept-Encoding:")]
+            enc = encoding[0].split(' ', 1)[1] if encoding else None
+            
+            global enc_flag
+            if enc == 'gzip':
+                enc_flag = True
+            else:
+                enc_flag = False
+                
             request_body = lines[-1] if lines[-2] == '' else ''
             handle_request(conn, path, user_agent, method, request_body)
 
@@ -52,6 +63,8 @@ def build_response(body, status, content_type):
     if status.startswith(OK):
         if body:
             resp.extend([f'Content-Type: {content_type}', f'Content-Length: {len(body_bytes)}'])
+    if enc_flag:
+        resp.append('Content-Encoding: gzip')
     resp.append('')
     
     # add CRLF before response body to terminate the headers section
