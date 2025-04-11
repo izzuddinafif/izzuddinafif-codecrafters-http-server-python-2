@@ -38,12 +38,15 @@ def handle_client(conn, addr):
                 break
             lines = data.splitlines()
             method, path, version = lines[0].split(' ')
+            print(lines)
             
             user_agent_lines = [ua for ua in lines if ua.startswith("User-Agent:")]
             user_agent = user_agent_lines[0].split(' ', 1)[1] if user_agent_lines else "Unknown"
             
             encoding = [ae for ae in lines if ae.startswith("Accept-Encoding:")]
-            enc = encoding[0].split(' ', 1)[1] if encoding else None
+            enc_list = encoding[0].removeprefix("Accept-Encoding: ").split(', ') if encoding else None
+            print(enc_list)
+            enc = 'gzip' if enc_list and 'gzip' in enc_list else None
             
             global enc_flag
             if enc == 'gzip':
@@ -69,11 +72,6 @@ def build_response(body, status, content_type):
     
     # add CRLF before response body to terminate the headers section
     return '\r\n'.join(resp).encode() + b'\r\n' + body_bytes
-
-def read_file(path):
-    content = ''
-    
-    return content
 
 def handle_request(conn, path, user_agent, method, req_body):
     p = path.split('/') 
