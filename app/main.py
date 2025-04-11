@@ -3,6 +3,7 @@ import logging
 import threading
 import argparse
 import pathlib
+import gzip
 
 BADREQ = '400 Bad Request'
 NOTFOUND = '404 Not Found'
@@ -37,15 +38,12 @@ def handle_client(conn, addr):
             if not data:
                 break
             lines = data.splitlines()
-            method, path, version = lines[0].split(' ')
-            print(lines)
-            
+            method, path, version = lines[0].split(' ')            
             user_agent_lines = [ua for ua in lines if ua.startswith("User-Agent:")]
             user_agent = user_agent_lines[0].split(' ', 1)[1] if user_agent_lines else "Unknown"
             
             encoding = [ae for ae in lines if ae.startswith("Accept-Encoding:")]
             enc_list = encoding[0].removeprefix("Accept-Encoding: ").split(', ') if encoding else None
-            print(enc_list)
             enc = 'gzip' if enc_list and 'gzip' in enc_list else None
             
             global enc_flag
@@ -59,6 +57,7 @@ def handle_client(conn, addr):
 
 def build_response(body, status, content_type):
     body_bytes = body.encode()
+    body_bytes = gzip.compress(body_bytes) if enc_flag else body_bytes
     resp = [
         f'HTTP/1.1 {status}',
     ]
